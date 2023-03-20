@@ -3,3 +3,5 @@ BSRGAN/
 .DS_Store
 
 *.csv
+
+Detection_Online_Game/*.pdf
