@@ -27,7 +27,7 @@ class TelegramManager:
         
         
     async def init_bot(self):
-        self.token = '5862624931:AAHso-IJuewiTCE_DoRz5IQBY6Qu595Ra8g'  # 받는게 맞나?
+        self.token = 'Enter telegram_bot api_key'  # 받는게 맞나?
         self.bot = telegram.Bot(self.token)
         self.updates = await self.bot.getUpdates()
         print(self.updates)
