@@ -1,23 +1,25 @@
 import pandas as pd
 def read_data(file_path):
-    df = pd.read_csv(file_path)
 
-    return df
-
+    return pd.read_csv(file_path)
 
 def preprocessing(df):
     # 전처리
-    return df
+    # return df
+    pass
 
 def select_topic(df):
-    # 토픽 추출
-    return ['topic1']
+    flags = (df['content'].str.contains('gpt')) | (df['content'].str.contains('GPT')) |\
+         (df['content'].str.contains('챗')) | (df['content'].str.contains('자연어'))
+
+    return df[flags].reset_index(drop=True)
+    
 
 def summarize(df):
     # df['content'] 요약
+    # return df['summarized_text']
+    pass
 
-    df['summarized_text'] = df['content']
-    return df['summarized_text']
 
 import telegram
 import asyncio
@@ -27,10 +29,9 @@ class TelegramManager:
         
         
     async def init_bot(self):
-        self.token = 'Enter telegram_bot api_key'  # 받는게 맞나?
+        self.token = '5862624931:AAHso-IJuewiTCE_DoRz5IQBY6Qu595Ra8g'  # 받는게 맞나?
         self.bot = telegram.Bot(self.token)
         self.updates = await self.bot.getUpdates()
-        print(self.updates)
         self.chat_id = self.updates[-1].message.chat.id
 
     async def send_msg(self, text):
@@ -41,61 +42,40 @@ class TelegramManager:
 
         return 
 
+async def init_telegram():
+    bot = TelegramManager()
 
+    await bot.init_bot()
 
+    return bot
+
+async def send_msg(bot, topics):
+    print('PUSH Telegram : ', len(topics))
+    for idx, row in topics.iterrows():
+        msg = '[' + row['main_category'] + '-' + row['sub_category'] + ']' + '\n' + row['title'] + '(' +row['writed_at']+ ')s'
+        await bot.send_msg(msg)
 
 
 import crawler
 if __name__ == '__main__':
 
-    # new_contents = crawler.call_news()
+    new_contents = read_data('./news.csv')
 
-    t_hanlder = TelegramManager()
-    t_hanlder.send_msg('test')
-    # new_contents['title'].apply(t_hanlder.send_msg)    
+    # 키워드 뉴스 뽑아내기
+    topics = select_topic(new_contents)
+    print('GPT ARTICLE : ', len(topics))
+    # 전처리
+    # topics = preprocessing(topics)
 
-class NewsHelper:
-    
-    def __init__(self) -> None:
-        # 데이터 불러오기
-        self.df = self.read_data('./news.txt')
-        pass
+    # # 요약
+    # summarize = summarize(topics)
 
-    def read_data(self, file_path):
-        df = []
-        return df
-    
-    def preprocessing(self):
-        return self.df
-    
-    def summarize(self):
-        return self.df
+    # 텔레그램
+    loop = asyncio.get_event_loop()
+    push_article = loop.run_until_complete(init_telegram())
+
+    loop.run_until_complete(send_msg(push_article, topics))
+    loop.close()
 
 
-        
-
-# 뉴스 파일의 전체 로직
-
-## 1. 크롤링한 뉴스기사 데이터를 불러온다.
-## 2. 뉴스기사 데이터를 전처리
-## 3. 뉴스기사 키워드 추출, 요약
-## 4. 텔레그램 혹은 이메일을 통해 사용자에게 발송
-
-
-# 파일 불러오기 방법 1, 2
-# pd.read_csv('/home/ubuntu/workspace/news.csv')
-
-# files = os.listdir('./news')
-# '1'
-
-# last_news_number = int(open('./last_csv_file_number').read())
-
-# # for f in files[last_news_number:]:
-#     # df에 추가
-#     # if int(f.split('.')[0].split('_')[1]) > last_news_number:
-#         # df에 추가
-# # else:
-# #     # last_csv_file_number에 추가
-# #     int(f.split('.')[0].split('_')[1])
-        
-
+   

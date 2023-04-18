@@ -114,7 +114,7 @@ def get_content_url(base_url, recent_url):
         urls = urls[:urls.index(recent_url)]
         
     
-    return getUrls
+    return urls
     
 
 # 기사 본문 url을 받아 데이터 프레임에 내용 저장
@@ -142,6 +142,7 @@ def make_new_data():
     
     try:
         last_date = pd.to_datetime(recent_urls['last_date'])
+        print('Load last_date -> ', last_date)
     except: # 파일이 없으면 오류가 발생하고 오늘 이전 날짜로 last_Date를 설정
         last_date = pd.to_datetime(time.strftime('%Y%m%d', time.localtime())) - timedelta(days=1)
         print('last_date create => ', last_date)
@@ -154,10 +155,11 @@ def make_new_data():
     while True:
         last_date = last_date + timedelta(days=1)
         dates.append(last_date)
-        if last_date == today:
+        if (last_date.day == today.day) & (last_date.month == today.month):
             break
     
     # 날짜 -> 카테고리1 -> 카테고리2
+    print('Serach from : ' + str(dates[0]) + 'to : ' + str(dates[-1]))
     for date in dates:
         detail_date = date.strftime('%Y%m%d') #  20230201 형태
     
@@ -174,10 +176,8 @@ def make_new_data():
                     print("Can't find recent_url -> ", sub)
                     recent_url = ''
 
-                print(recent_url)
-
                 new_contents_sub['url'] = get_content_url(url, recent_url)
-
+                
                 df_split = np.array_split(new_contents_sub, num_cores)
 
                 pool = Pool(num_cores)
@@ -189,9 +189,8 @@ def make_new_data():
                     contents['platform'] = '네이버'
                     new_contents = pd.concat([contents, new_contents])
 
-
-                print('new_content - >',new_contents)
-                recent_urls[sub] = new_contents.iloc[0]['url']
+                if len(new_contents):
+                    recent_urls[sub] = new_contents.iloc[0]['url']
                 break
             break
         break
@@ -223,11 +222,9 @@ def load_crawled_contents(file_path):
         return pd.DataFrame()
 
 
-def save_news_data(file_path, old, new):
+def save_news_data(file_path, new):
     
-    data = pd.concat([old,new])
-    
-    data.to_csv(file_path, index=False)
+    new.to_csv(file_path, index=False)
 
 
 # 통합 클렌징 코드
@@ -264,36 +261,16 @@ def cleansing(text:str, writer:str=None) -> str:
 
     return text
 
-# 텔레그램 초기화
-async def init_telegram():
-    bot = news.TelegramManager()
-
-    await bot.init_bot()
-
-    return bot
-
-# 텔레그램 메세지 전송
-import news
-async def send_msg(bot, df):
-    msgs = df['titlse']
-    for msg in msgs.iloc[:10]:
-        await bot.send_msg(msg)
-
-
-# 새로운 기사 필터링이 필요하다면  이부분에서 처리하고 메인 함수에서 주석 해제
-def filter_new_contents(df):
-    pass
-
-
 # 메인 함수
 import asyncio
 if __name__ == '__main__':
     # 뉴스 데이터 
-    crawled_contents = load_crawled_contents('./news.csv') # 기존의 기사가 있는지 확인하고 있다면 불러옴. 없으면 빈 DataFrame 가져옴
+    # crawled_contents = load_crawled_contents('./news.csv') # 기존의 기사가 있는지 확인하고 있다면 불러옴. 없으면 빈 DataFrame 가져옴
     new_contents, recent_urls = make_new_data() # 새로운 기사 탐색
 
-    # 최신 탐색 날짜 갱신
-    last_date = new_contents['writed_at'].sort_values().dropna().iloc[-1]
+    # 현재 시간 넣기
+    last_date = time.strftime('%Y%m%d', time.localtime())
+
     recent_urls['last_date'] = last_date
     
     # 새로운 기사 본문 클렌징
@@ -301,16 +278,6 @@ if __name__ == '__main__':
     
     print(f'New Content {len(new_contents)}')
 
-    # 푸시할 기사 필터링
-    # new_contents = filter_new_contents()
-
-    # 새로운 기사 텔레그램으로 푸시
-    loop = asyncio.get_event_loop()
-    push_article = loop.run_until_complete(init_telegram())
-
-    loop.run_until_complete(send_msg(push_article, new_contents))
-    loop.close()
-    
     # 모든 작업이 끝났으니 지금까지 데이터 저장
     save_recent_urls(recent_urls)
-    save_news_data('./news.csv', crawled_contents, new_contents)
+    save_news_data('./news.csv', new_contents)
